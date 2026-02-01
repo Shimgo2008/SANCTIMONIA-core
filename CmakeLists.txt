@@ -1,0 +1,36 @@
+# src/core/CmakeLists.txt
+
+cmake_minimum_required(VERSION 3.15)
+project(sanctimonia-core)
+
+find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
+
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+
+find_package(nanobind CONFIG REQUIRED)
+
+nanobind_add_module(
+    core 
+    NOMINSIZE 
+    src/main.cpp
+)
+
+if(APPLE)
+    target_compile_options(core PRIVATE "-stdlib=libc++")
+    target_link_options(core PRIVATE "-stdlib=libc++")
+
+    # Homebrew LLVMを使用している場合、正しいlibc++へのパスを追加
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER MATCHES "/opt/homebrew/opt/llvm")
+        get_filename_component(COMPILER_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+        get_filename_component(LLVM_PREFIX ${COMPILER_DIR} DIRECTORY)
+        set(LLVM_LIB_CXX_DIR "${LLVM_PREFIX}/lib/c++")
+        if(EXISTS "${LLVM_LIB_CXX_DIR}")
+            target_link_directories(core PRIVATE "${LLVM_LIB_CXX_DIR}")
+            target_link_options(core PRIVATE "-Wl,-rpath,${LLVM_LIB_CXX_DIR}")
+        endif()
+    endif()
+endif()
+
+install(TARGETS core LIBRARY DESTINATION sanctimonia)
