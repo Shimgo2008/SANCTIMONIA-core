@@ -1,22 +1,62 @@
-# src/core/CmakeLists.txt
-
 cmake_minimum_required(VERSION 3.15)
 project(sanctimonia-core)
 
+# --- Dependencies ---
+
+# Python
 find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 
+# nanobind
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
-
 find_package(nanobind CONFIG REQUIRED)
+
+# Eigen3
+find_package(Eigen3 3.3...5 REQUIRED NO_MODULE)
+
+# --- ONNX Runtime Support ---
+# Try to find ONNX Runtime (MacOS Homebrew / User Local)
+set(ONNX_SEARCH_PATHS 
+    "/opt/homebrew" 
+    "/usr/local"
+    $ENV{ONNXRUNTIME_ROOT}
+)
+
+find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+    PATHS ${ONNX_SEARCH_PATHS}
+    PATH_SUFFIXES include/onnxruntime include
+)
+
+find_library(ONNXRUNTIME_LIBRARY onnxruntime
+    PATHS ${ONNX_SEARCH_PATHS}
+    PATH_SUFFIXES lib
+)
+
+if (ONNXRUNTIME_INCLUDE_DIR AND ONNXRUNTIME_LIBRARY)
+    message(STATUS "Found OnnxRuntime include: ${ONNXRUNTIME_INCLUDE_DIR}")
+    message(STATUS "Found OnnxRuntime lib: ${ONNXRUNTIME_LIBRARY}")
+else()
+    message(FATAL_ERROR "OnnxRuntime not found! Please install it (e.g. `brew install onnxruntime` on macOS) or set ONNXRUNTIME_ROOT.")
+endif()
+
+# --- Target Definition ---
 
 nanobind_add_module(
     core 
     NOMINSIZE 
     src/main.cpp
+    src/nn_preprocessor.cpp
 )
 
+# --- Configuration ---
+
+target_include_directories(core PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
+target_include_directories(core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# Link Libraries
+target_link_libraries(core PRIVATE Eigen3::Eigen ${ONNXRUNTIME_LIBRARY})
+
+# macOS specific configuration
 if(APPLE)
     target_compile_options(core PRIVATE "-stdlib=libc++")
     target_link_options(core PRIVATE "-stdlib=libc++")
@@ -32,5 +72,3 @@ if(APPLE)
         endif()
     endif()
 endif()
-
-install(TARGETS core LIBRARY DESTINATION sanctimonia)
