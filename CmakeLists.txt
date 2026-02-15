@@ -49,6 +49,11 @@ nanobind_add_module(
     src/nn_preprocessor.cpp
 )
 
+# Build後にPythonパッケージディレクトリへコピー
+add_custom_command(TARGET core POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:core> ${CMAKE_SOURCE_DIR}/src/sanctimonia/$<TARGET_FILE_NAME:core>
+)
+
 # --- Configuration ---
 
 target_include_directories(core PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
