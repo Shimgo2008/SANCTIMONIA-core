@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.19)
 project(sanctimonia-core)
 
 # --- Dependencies ---
@@ -12,8 +12,6 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
-# Eigen3
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 # --- ONNX Runtime Support ---
 # Try to find ONNX Runtime (MacOS Homebrew / User Local)
@@ -63,6 +61,8 @@ target_link_libraries(core PRIVATE Eigen3::Eigen ${ONNXRUNTIME_LIBRARY})
 
 # macOS specific configuration
 if(APPLE)
+    # Eigen3
+    find_package(Eigen3 3.3...5.0 REQUIRED NO_MODULE)
     target_compile_options(core PRIVATE "-stdlib=libc++")
     target_link_options(core PRIVATE "-stdlib=libc++")
 
@@ -76,4 +76,7 @@ if(APPLE)
             target_link_options(core PRIVATE "-Wl,-rpath,${LLVM_LIB_CXX_DIR}")
         endif()
     endif()
+else()
+    # なぜか私のwindows環境は...でバージョン指定すると見つからないのでこう。
+    find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 endif()
