@@ -1,6 +1,8 @@
+#include "device_selector.hpp"
 #include "nn_preprocessor.hpp"
 #include <onnxruntime_cxx_api.h>
 #include <algorithm>
+#include <chrono>
 
 namespace sanctimonia::core {
 
@@ -10,32 +12,41 @@ struct NNPreprocessor<T>::Impl {
     Ort::Session session;
     Ort::MemoryInfo mem_info;
 
-    // ONNXエクスポート時の名前に合わせてください
-    std::vector<const char*> input_names = {"b", "edge_index", "edge_attr"};
-    std::vector<std::string> output_name_strings;
-    std::vector<const char*> output_names;
+    // ヘルパー関数: SessionOptions を組み立ててから返す
+    static Ort::SessionOptions CreateOptions() {
+        Ort::SessionOptions options;
+        // ここで CUDA か CPU かを自動選択
+        apply_device_strategy(options);
+        return options;
+    }
 
     Impl(const std::string& model_path) 
         : env(ORT_LOGGING_LEVEL_WARNING, "SanctimoniaGNN"),
-          session(env, model_path.c_str(), Ort::SessionOptions{nullptr}),
-          mem_info(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)) {
-            
-            Ort::AllocatorWithDefaultOptions allocator;
-            size_t num_outputs = session.GetOutputCount();
-            output_name_strings.reserve(num_outputs);
-            output_names.reserve(num_outputs);
+          // 修正ポイント: 作成済みの options を session に渡す
+          session(env, model_path.c_str(), CreateOptions()),
+          mem_info(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)) 
+    {
+        Ort::AllocatorWithDefaultOptions allocator;
+        size_t num_outputs = session.GetOutputCount();
+        output_name_strings.reserve(num_outputs);
+        output_names.reserve(num_outputs);
 
-            for (size_t i = 0; i < num_outputs; ++i) {
-                auto name_ptr = session.GetOutputNameAllocated(i, allocator);
-                output_name_strings.push_back(name_ptr.get());
-                output_names.push_back(output_name_strings.back().c_str());
-            }
-          }
+        for (size_t i = 0; i < num_outputs; ++i) {
+            auto name_ptr = session.GetOutputNameAllocated(i, allocator);
+            output_name_strings.push_back(name_ptr.get());
+            output_names.push_back(output_name_strings.back().c_str());
+        }
+    }
+
+    std::vector<const char*> input_names = {"b", "edge_index", "edge_attr"};
+    std::vector<std::string> output_name_strings;
+    std::vector<const char*> output_names;
 };
 
 template<typename T>
 typename NNPreprocessor<T>::ComplexVector 
 NNPreprocessor<T>::predict(const ComplexSparseMatrix& A, const ComplexVector& b) {
+    auto start = std::chrono::high_resolution_clock::now();
     const int64_t num_nodes = b.size();
     const int64_t num_edges = A.nonZeros();
 
@@ -92,6 +103,9 @@ NNPreprocessor<T>::predict(const ComplexSparseMatrix& A, const ComplexVector& b)
     for (int i = 0; i < num_nodes; ++i) {
         x0(i) = ComplexT(static_cast<T>(out_ptr[i * 2 + 0]), static_cast<T>(out_ptr[i * 2 + 1]));
     }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "Predict latency: " << std::chrono::duration<double>(end - start).count() << "s" << std::endl;
 
     return x0;
 }
