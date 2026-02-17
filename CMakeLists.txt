@@ -13,7 +13,7 @@ execute_process(
 find_package(nanobind CONFIG REQUIRED)
 
 # Eigen3
-find_package(Eigen3 3.3...5 REQUIRED NO_MODULE)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 # --- ONNX Runtime Support ---
 # Try to find ONNX Runtime (MacOS Homebrew / User Local)
