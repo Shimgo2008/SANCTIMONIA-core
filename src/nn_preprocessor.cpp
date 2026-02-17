@@ -34,19 +34,23 @@ struct NNPreprocessor<T>::Impl {
 };
 
 template<typename T>
-typename NNPreprocessor<T>::ComplexVector 
-NNPreprocessor<T>::predict(const ComplexSparseMatrix& A, const ComplexVector& b) {
-    const int64_t num_nodes = b.size();
+typename NNPreprocessor<T>::ComplexMatrix 
+NNPreprocessor<T>::predict(const ComplexSparseMatrix& A, const ComplexMatrix& b) {
+    const int64_t num_nodes = b.rows();
+    const int64_t num_systems = b.cols(); // num_systems
     const int64_t num_edges = A.nonZeros();
 
-    // 1. b [N] (complex) -> b_tensor [N, 2] (real)
+    // 1. b [N, S] (complex) -> b_tensor [N, S, 2] (real)
     // ONNXモデルがfloat32を期待しているため、T=doubleでもfloatにキャストする
-    std::vector<float> b_flat(num_nodes * 2);
+    std::vector<float> b_flat(num_nodes * num_systems * 2);
     for (int i = 0; i < num_nodes; ++i) {
-        b_flat[i * 2 + 0] = static_cast<float>(b(i).real());
-        b_flat[i * 2 + 1] = static_cast<float>(b(i).imag());
+        for (int j = 0; j < num_systems; ++j) {
+            size_t idx = (i * num_systems + j) * 2;
+            b_flat[idx + 0] = static_cast<float>(b(i, j).real());
+            b_flat[idx + 1] = static_cast<float>(b(i, j).imag());
+        }
     }
-    std::vector<int64_t> b_shape = {num_nodes, 1, 2};
+    std::vector<int64_t> b_shape = {num_nodes, num_systems, 2};
 
     // 2. A (Sparse) -> edge_index [2, E] & edge_attr [E, 2]
     std::vector<int64_t> edge_index_flat(num_edges * 2);
@@ -86,11 +90,14 @@ NNPreprocessor<T>::predict(const ComplexSparseMatrix& A, const ComplexVector& b)
         pImpl->output_names.data(), 1
     );
 
-    // 5. 出力 [N, 2] -> ComplexVector [N]
+    // 5. 出力 [N, S, 2] -> ComplexMatrix [N, S]
     float* out_ptr = outputs.front().template GetTensorMutableData<float>();
-    ComplexVector x0(num_nodes);
+    ComplexMatrix x0(num_nodes, num_systems);
     for (int i = 0; i < num_nodes; ++i) {
-        x0(i) = ComplexT(static_cast<T>(out_ptr[i * 2 + 0]), static_cast<T>(out_ptr[i * 2 + 1]));
+        for (int j = 0; j < num_systems; ++j) {
+            size_t idx = (i * num_systems + j) * 2;
+            x0(i, j) = ComplexT(static_cast<T>(out_ptr[idx + 0]), static_cast<T>(out_ptr[idx + 1]));
+        }
     }
 
     return x0;
