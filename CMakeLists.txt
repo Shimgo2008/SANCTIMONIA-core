@@ -59,6 +59,11 @@ target_include_directories(core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Link Libraries
 target_link_libraries(core PRIVATE Eigen3::Eigen ${ONNXRUNTIME_LIBRARY})
 
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(core PRIVATE OpenMP::OpenMP_CXX)
+endif()
+
 # macOS specific configuration
 if(APPLE)
     # Eigen3

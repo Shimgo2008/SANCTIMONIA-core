@@ -4,10 +4,25 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <cctype>
+#include <stdexcept>
 
 namespace sanctimonia {
 
-inline void apply_device_strategy(Ort::SessionOptions& options) {
+inline void apply_device_strategy(Ort::SessionOptions& options, const std::string& device = "auto") {
+    const std::string normalized = [&]() {
+        std::string s = device;
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        return s;
+    }();
+
+    if (normalized == "cpu") {
+        std::cout << "[Sanctimonia] Execution Provider: CPU (forced)" << std::endl;
+        return;
+    }
+
     // 利用可能なExecution Providerをすべて取得
     auto providers = Ort::GetAvailableProviders();
     
@@ -29,6 +44,9 @@ inline void apply_device_strategy(Ort::SessionOptions& options) {
             std::cerr << "[Sanctimonia] Failed to load CUDA: " << e.what() << ". Falling back to CPU." << std::endl;
         }
     } else {
+        if (normalized == "cuda") {
+            throw std::runtime_error("CUDA device was requested but CUDAExecutionProvider is not available");
+        }
         std::cout << "[Sanctimonia] CUDA not found. Execution Provider: CPU" << std::endl;
     }
 }

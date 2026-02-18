@@ -13,17 +13,17 @@ struct NNPreprocessor<T>::Impl {
     Ort::MemoryInfo mem_info;
 
     // ヘルパー関数: SessionOptions を組み立ててから返す
-    static Ort::SessionOptions CreateOptions() {
+    static Ort::SessionOptions CreateOptions(const std::string& device) {
         Ort::SessionOptions options;
-        // ここで CUDA か CPU かを自動選択
-        apply_device_strategy(options);
+
+        apply_device_strategy(options, device);
         return options;
     }
 
-    Impl(const std::string& model_path) 
-        : env(ORT_LOGGING_LEVEL_WARNING, "SanctimoniaGNN"),
-          // 修正ポイント: 作成済みの options を session に渡す
-          session(env, model_path.c_str(), CreateOptions()),
+    Impl(const std::string& model_path, const std::string& device) 
+        : env(ORT_LOGGING_LEVEL_ERROR, "SanctimoniaGNN"),
+
+          session(env, model_path.c_str(), CreateOptions(device)),
           mem_info(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)) 
     {
         Ort::AllocatorWithDefaultOptions allocator;
@@ -119,8 +119,8 @@ NNPreprocessor<T>::predict(const ComplexSparseMatrix& A, const ComplexMatrix& b)
 }
 
 template<typename T>
-NNPreprocessor<T>::NNPreprocessor(const std::string& model_path) {
-    pImpl = new Impl(model_path);
+NNPreprocessor<T>::NNPreprocessor(const std::string& model_path, const std::string& device) {
+    pImpl = new Impl(model_path, device);
 };
 
 template<typename T>
