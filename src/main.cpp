@@ -3,51 +3,34 @@
 using namespace sanctimonia::core;
 
 NB_MODULE(core, m) {
-    // --- Real Solvers ---
-    register_solver<Eigen::ConjugateGradient<RowMatrixXd>, RowMatrixXd, VectorXd>(m, "solve_cg");
-    register_solver<Eigen::BiCGSTAB<RowMatrixXd>, RowMatrixXd, VectorXd>(m, "solve_bicgstab");
-    register_solver<Eigen::LeastSquaresConjugateGradient<RowMatrixXd>, RowMatrixXd, VectorXd>(m, "solve_lscg");
+    register_stateful_solvers(m);
 
-    using ILU_CG = Eigen::ConjugateGradient<SparseMatrixXd, Eigen::Lower|Eigen::Upper, Eigen::IncompleteLUT<double>>;
-    using ILU_BiCG = Eigen::BiCGSTAB<SparseMatrixXd, Eigen::IncompleteLUT<double>>;
-    using ILU_LSCG = Eigen::LeastSquaresConjugateGradient<SparseMatrixXd, Eigen::IncompleteLUT<double>>;
+    register_dense_solver_function_class<CGSolver, double, RowMatrixXd, VectorXd>(m, "solve_cg");
+    register_dense_solver_function_class<BiCGStabSolver, double, RowMatrixXd, VectorXd>(m, "solve_bicgstab");
+    register_dense_solver_function_class<LSCGSolver, double, RowMatrixXd, VectorXd>(m, "solve_lscg");
 
-    register_sparse_solver<ILU_CG, RowMatrixXd, VectorXd, SparseMatrixXd>(m, "solve_cg_ilu");
-    register_sparse_solver<ILU_BiCG, RowMatrixXd, VectorXd, SparseMatrixXd>(m, "solve_bicgstab_ilu");
-    register_sparse_solver<ILU_LSCG, RowMatrixXd, VectorXd, SparseMatrixXd>(m, "solve_lscg_ilu");
+    register_sparse_solver_function_class<ILUCGSolver, double, VectorXd, SparseMatrixXd>(m, "solve_cg_ilu");
+    register_sparse_solver_function_class<ILUBiCGStabSolver, double, VectorXd, SparseMatrixXd>(m, "solve_bicgstab_ilu");
+    register_sparse_solver_function_class<ILULSCGSolver, double, VectorXd, SparseMatrixXd>(m, "solve_lscg_ilu");
 
-    // --- Complex Solvers ---
-    // CG (Hermitian Positive Definite)
-    register_solver<Eigen::ConjugateGradient<RowMatrixXcd>, RowMatrixXcd, VectorXcd>(m, "solve_cg");
-    register_solver<Eigen::BiCGSTAB<RowMatrixXcd>, RowMatrixXcd, VectorXcd>(m, "solve_bicgstab");
-    register_solver<Eigen::LeastSquaresConjugateGradient<RowMatrixXcd>, RowMatrixXcd, VectorXcd>(m, "solve_lscg");
+    using ComplexCG = Eigen::ConjugateGradient<RowMatrixXcd>;
+    using ComplexBiCG = Eigen::BiCGSTAB<RowMatrixXcd>;
+    using ComplexLSCG = Eigen::LeastSquaresConjugateGradient<RowMatrixXcd>;
 
-    using ILU_CG_Complex = Eigen::ConjugateGradient<SparseMatrixXcd, Eigen::Lower|Eigen::Upper, Eigen::IncompleteLUT<Complex>>;
-    using ILU_BiCG_Complex = Eigen::BiCGSTAB<SparseMatrixXcd, Eigen::IncompleteLUT<Complex>>;
-    using ILU_LSCG_Complex = Eigen::LeastSquaresConjugateGradient<SparseMatrixXcd, Eigen::IncompleteLUT<Complex>>;
+    register_dense_solver_function_type<ComplexCG, Complex, RowMatrixXcd, VectorXcd>(m, "solve_cg");
+    register_dense_solver_function_type<ComplexBiCG, Complex, RowMatrixXcd, VectorXcd>(m, "solve_bicgstab");
+    register_dense_solver_function_type<ComplexLSCG, Complex, RowMatrixXcd, VectorXcd>(m, "solve_lscg");
 
-    // Vector RHS
-    register_sparse_solver<ILU_CG_Complex, RowMatrixXcd, VectorXcd, SparseMatrixXcd>(m, "solve_cg_ilu");
-    register_sparse_solver<ILU_BiCG_Complex, RowMatrixXcd, VectorXcd, SparseMatrixXcd>(m, "solve_bicgstab_ilu");
-    register_sparse_solver<ILU_LSCG_Complex, RowMatrixXcd, VectorXcd, SparseMatrixXcd>(m, "solve_lscg_ilu");
+    using ComplexILUCG = Eigen::ConjugateGradient<SparseMatrixXcd, Eigen::Lower | Eigen::Upper, Eigen::IncompleteLUT<Complex>>;
+    using ComplexILUBiCG = Eigen::BiCGSTAB<SparseMatrixXcd, Eigen::IncompleteLUT<Complex>>;
+    using ComplexILULSCG = Eigen::LeastSquaresConjugateGradient<SparseMatrixXcd, Eigen::IncompleteLUT<Complex>>;
 
-    // 直接解法 (Real)
-    m.def("solve_full_piv_lu", [](Eigen::Ref<const RowMatrixXd> A, Eigen::Ref<const VectorXd> b) -> VectorXd {
-        return A.fullPivLu().solve(b).eval();
-    }, nb::arg("A").noconvert(), nb::arg("b").noconvert());
+    register_sparse_solver_function_type<ComplexILUCG, Complex, VectorXcd, SparseMatrixXcd>(m, "solve_cg_ilu");
+    register_sparse_solver_function_type<ComplexILUBiCG, Complex, VectorXcd, SparseMatrixXcd>(m, "solve_bicgstab_ilu");
+    register_sparse_solver_function_type<ComplexILULSCG, Complex, VectorXcd, SparseMatrixXcd>(m, "solve_lscg_ilu");
 
-    m.def("solve_partial_piv_lu", [](Eigen::Ref<const RowMatrixXd> A, Eigen::Ref<const VectorXd> b) -> VectorXd {
-        return A.partialPivLu().solve(b).eval();
-    }, nb::arg("A").noconvert(), nb::arg("b").noconvert());
-
-    // 直接解法 (Complex)
-    m.def("solve_full_piv_lu", [](Eigen::Ref<const RowMatrixXcd> A, Eigen::Ref<const VectorXcd> b) -> VectorXcd {
-        return A.fullPivLu().solve(b).eval();
-    }, nb::arg("A").noconvert(), nb::arg("b").noconvert());
-
-    m.def("solve_partial_piv_lu", [](Eigen::Ref<const RowMatrixXcd> A, Eigen::Ref<const VectorXcd> b) -> VectorXcd {
-        return A.partialPivLu().solve(b).eval();
-    }, nb::arg("A").noconvert(), nb::arg("b").noconvert());
+    register_lu_functions<double, RowMatrixXd, VectorXd>(m);
+    register_lu_functions<Complex, RowMatrixXcd, VectorXcd>(m);
 
     // --- NN Preprocessor ---
     register_nn_preprocessor<double>(m, "NNPreprocessor");
