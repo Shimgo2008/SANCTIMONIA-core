@@ -145,9 +145,9 @@ public:
 };
 
 
-using CGSolver = DenseIterativeSolver<Eigen::ConjugateGradient<RowMatrixXd>>;
-using BiCGStabSolver = DenseIterativeSolver<Eigen::BiCGSTAB<RowMatrixXd>>;
-using LSCGSolver = DenseIterativeSolver<Eigen::LeastSquaresConjugateGradient<RowMatrixXd>>;
+using CGSolver = SparseCapableIterativeSolver<Eigen::ConjugateGradient<SparseMatrixXd>>;
+using BiCGStabSolver = SparseCapableIterativeSolver<Eigen::BiCGSTAB<SparseMatrixXd>>;
+using LSCGSolver = SparseCapableIterativeSolver<Eigen::LeastSquaresConjugateGradient<SparseMatrixXd>>;
 
 
 using ILUCGSolver = SparseCapableIterativeSolver<Eigen::ConjugateGradient<SparseMatrixXd, Eigen::Lower | Eigen::Upper, Eigen::IncompleteLUT<double>>>;
