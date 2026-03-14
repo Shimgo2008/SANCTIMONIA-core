@@ -3,6 +3,7 @@
 #include <Eigen/Sparse>
 #include <complex>
 #include <string>
+#include <stdexcept>
 
 namespace sanctimonia::core {
     
@@ -23,7 +24,26 @@ class NNPreprocessor {
     // A と b を受け取り、初期解 x0 を複素行列で返す
     ComplexMatrix predict(const ComplexSparseMatrix& A, const ComplexMatrix& b);
 
+    template<typename OutputType>
+    OutputType predict(const ComplexSparseMatrix& A, const ComplexMatrix& b) {
+        return convert_output<OutputType>(predict(A, b));
+    }
+
 private:
+    template<typename OutputType>
+    static OutputType convert_output(const ComplexMatrix& x0) {
+        using OutputScalar = typename OutputType::Scalar;
+
+        if constexpr (OutputType::ColsAtCompileTime == 1) {
+            if (x0.cols() != 1) {
+                throw std::invalid_argument("NNPreprocessor::predict<OutputType>: output has multiple systems; vector output requires cols == 1");
+            }
+            return x0.col(0).template cast<OutputScalar>();
+        }
+
+        return x0.template cast<OutputScalar>();
+    }
+
     struct Impl;
     Impl* pImpl;
 };

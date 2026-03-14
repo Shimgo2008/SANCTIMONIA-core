@@ -76,8 +76,8 @@ std::optional<Eigen::Matrix<Scalar, Eigen::Dynamic, 1>> to_optional_vector(
 }
 
 template <typename Scalar, typename SolverClass, typename MatrixType, typename VectorType>
-void bind_dense_solver_class(nb::module_& m, const char* name) {
-    nb::class_<SolverClass, SolverBase>(m, name)
+nb::class_<SolverClass, SolverBase> bind_dense_solver_class(nb::module_& m, const char* name) {
+    return nb::class_<SolverClass, SolverBase>(m, name)
            .def(nb::init<int, std::string, double, int>(),
              nb::arg("num_threads") = 0,
              nb::arg("device") = "cpu",
@@ -168,9 +168,14 @@ inline void register_stateful_solvers(nb::module_& m) {
         .def("set_max_iterations", &SolverBase::set_max_iterations)
         .def("max_iterations", &SolverBase::max_iterations);
 
-    bind_dense_solver_class<double, CGSolver, RowMatrixXd, VectorXd>(m, "CGSolverCore");
-    bind_dense_solver_class<double, BiCGStabSolver, RowMatrixXd, VectorXd>(m, "BiCGStabSolverCore");
-    bind_dense_solver_class<double, LSCGSolver, RowMatrixXd, VectorXd>(m, "LSCGSolverCore");
+    auto cg = bind_dense_solver_class<double, CGSolver, RowMatrixXd, VectorXd>(m, "CGSolverCore");
+    bind_sparse_solver_method(cg);
+
+    auto bicg = bind_dense_solver_class<double, BiCGStabSolver, RowMatrixXd, VectorXd>(m, "BiCGStabSolverCore");
+    bind_sparse_solver_method(bicg);
+
+    auto lscg = bind_dense_solver_class<double, LSCGSolver, RowMatrixXd, VectorXd>(m, "LSCGSolverCore");
+    bind_sparse_solver_method(lscg);
 
     auto ilu_cg = nb::class_<ILUCGSolver, SolverBase>(m, "ILUCGSolverCore")
            .def(nb::init<int, std::string, double, int>(),
@@ -399,11 +404,15 @@ void register_lu_functions(nb::module_& m) {
 template <typename T>
 void register_nn_preprocessor(nb::module_& m, const char* name) {
     using Class = NNPreprocessor<T>;
+    using PredictMethod = typename Class::ComplexMatrix (Class::*)(
+        const typename Class::ComplexSparseMatrix&,
+        const typename Class::ComplexMatrix&);
+
     nb::class_<Class>(m, name)
         .def(nb::init<const std::string&, const std::string&>(),
              nb::arg("model_path"),
              nb::arg("device") = "auto")
-        .def("predict", &Class::predict, nb::arg("A").noconvert(), nb::arg("b").noconvert());
+        .def("predict", static_cast<PredictMethod>(&Class::predict), nb::arg("A").noconvert(), nb::arg("b").noconvert());
 }
 
 }
